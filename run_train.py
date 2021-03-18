@@ -80,42 +80,17 @@ if not path_lr.exists():
     parallel(create_training_images, il.items)
 
 bs=1
-sz=192
-keep_pct=1.0
+sz=256
+keep_pct=1
 num_runs = 5
 
 # train generator
 data_gen = get_data(bs=bs, sz=sz, keep_pct=keep_pct)
 learn_gen = gen_learner_deep(data=data_gen, gen_loss=FeatureLoss(), nf_factor=nf_factor)
 learn_gen.callback_fns.append(partial(ImageGenTensorboardWriter, base_dir=TENSORBOARD_PATH, name='GenPre'))
-learn_gen.fit_one_cycle(5, pct_start=0.8, max_lr=slice(1e-3))
+learn_gen.fit_one_cycle(10, pct_start=0.8, max_lr=slice(1e-3))
 learn_gen.save(pre_gen_name)
-
-# pretrain critic
-gc.collect()
-data_crit = get_crit_data([name_gen, 'test'], bs=bs, sz=sz)
-data_crit.show_batch(rows=3, ds_type=DatasetType.Train, imgsize=3)
-learn_critic = colorize_crit_learner(data=data_crit, nf=256)
-learn_critic.callback_fns.append(partial(LearnerTensorboardWriter, base_dir=TENSORBOARD_PATH, name='CriticPre'))
-learn_critic.fit_one_cycle(4, 1e-4)
-learn_critic.save(crit_name)
-
-gc.collect()
-data_crit = get_crit_data([name_gen, 'test'], bs=bs, sz=sz)
-# learn_crit = colorize_crit_learner(data=data_crit, nf=256).load(crit_new_checkpoint_name, with_opt=False)
-# learn_gen = gen_learner_deep(data=data_gen, gen_loss=FeatureLoss(), nf_factor=nf_factor).load(gen_old_checkpoint_name, with_opt=False)
-switcher = partial(AdaptiveGANSwitcher, critic_thresh=0.65)
-learn = GANLearner.from_learners(learn_gen, learn_critic, weights_gen=(1.0,2.0), show_img=False, switcher=switcher,
-                                 opt_func=partial(optim.Adam, betas=(0.,0.9)), wd=1e-3)
-learn.callback_fns.append(partial(GANDiscriminativeLR, mult_lr=5.))
-learn.callback_fns.append(partial(GANTensorboardWriter, base_dir=TENSORBOARD_PATH, name='GanLearner', visual_iters=100))
-learn.callback_fns.append(partial(GANSaveCallback, learn_gen=learn_gen, filename=gen_name, save_iters=100))
-
-learn.data = get_data(sz=sz, bs=bs, keep_pct=1.0)
-learn_gen.freeze_to(-1)
-learn.fit(1,1e-5)
 save_gen_images()
-
 path = Path('/home/v-yuanqidu/DeOldify/data/pascal_clean_more_val/val/')
 path_hr = path
 path_lr = path/'bandw'
@@ -123,4 +98,38 @@ if not path_lr.exists():
     il = ImageList.from_folder(path_hr)
     parallel(create_training_images, il.items)
 save_gen_images()
+exit(0)
+
+# pretrain critic
+# gc.collect()
+# data_crit = get_crit_data([name_gen, 'test'], bs=bs, sz=sz)
+# # data_crit.show_batch(rows=3, ds_type=DatasetType.Train, imgsize=3)
+# learn_critic = colorize_crit_learner(data=data_crit, nf=256)
+# learn_critic.callback_fns.append(partial(LearnerTensorboardWriter, base_dir=TENSORBOARD_PATH, name='CriticPre'))
+# learn_critic.fit_one_cycle(1, 1e-4)
+# learn_critic.save(crit_name)
+
+# gc.collect()
+# # data_crit = get_crit_data([name_gen, 'test'], bs=bs, sz=sz)
+# # learn_crit = colorize_crit_learner(data=data_crit, nf=256).load(crit_new_checkpoint_name, with_opt=False)
+# # learn_gen = gen_learner_deep(data=data_gen, gen_loss=FeatureLoss(), nf_factor=nf_factor).load(gen_old_checkpoint_name, with_opt=False)
+# switcher = partial(AdaptiveGANSwitcher, critic_thresh=0.65)
+# learn = GANLearner.from_learners(learn_gen, learn_critic, weights_gen=(1.0,2.0), show_img=False, switcher=switcher,
+#                                  opt_func=partial(optim.Adam, betas=(0.,0.9)), wd=1e-3)
+# learn.callback_fns.append(partial(GANDiscriminativeLR, mult_lr=5.))
+# learn.callback_fns.append(partial(GANTensorboardWriter, base_dir=TENSORBOARD_PATH, name='GanLearner', visual_iters=10000))
+# learn.callback_fns.append(partial(GANSaveCallback, learn_gen=learn_gen, filename=gen_name, save_iters=10000))
+
+# learn.data = get_data(sz=sz, bs=bs, keep_pct=0.001)
+# learn_gen.freeze_to(-1)
+# learn.fit(20,1e-5)
+# save_gen_images()
+
+# path = Path('/home/v-yuanqidu/DeOldify/data/pascal_clean_more_val/val/')
+# path_hr = path
+# path_lr = path/'bandw'
+# if not path_lr.exists():
+#     il = ImageList.from_folder(path_hr)
+#     parallel(create_training_images, il.items)
+# save_gen_images()
 
